@@ -19,6 +19,9 @@ spring:
       hibernate:
         format_sql: true
 
+  liquibase:
+    enabled: false
+
   kafka:
     bootstrap-servers: localhost:9092
 

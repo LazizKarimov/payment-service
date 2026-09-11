@@ -31,14 +31,14 @@ public class OrderEventConsumer {
 
         log.info("   Получено событие из Kafka:");
         log.info("   Partition: {}, Offset: {}", partition, offset);
-        log.info("   OrderId: {}, Amount: {}", event.getOrderId(), event.getAmount());
+        log.info("   OrderId: {}, Amount: {}", event.getId(), event.getAmount());
 
         try {
             paymentService.processPayment(event);
             ack.acknowledge();
             log.info(" Событие подтверждено");
         } catch (Exception e) {
-            log.error(" Ошибка обработки события: orderId={}", event.getOrderId(), e);
+            log.error(" Ошибка обработки события: orderId={}", event.getId(), e);
             // Не подтверждаем — Kafka перечитает сообщение
         }
     }

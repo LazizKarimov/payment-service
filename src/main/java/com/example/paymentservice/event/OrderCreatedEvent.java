@@ -14,7 +14,7 @@ import java.util.UUID;
 @Builder
 public class OrderCreatedEvent {
 
-    private UUID orderId;
+    private UUID id;
     private UUID customerId;
     private BigDecimal amount;
     private String status;

@@ -26,17 +26,17 @@ public class PaymentService {
     @Transactional
     public void processPayment(OrderCreatedEvent event) {
         log.info("  Начало обработки платежа: orderId={}, amount={}",
-                event.getOrderId(), event.getAmount());
+                event.getId(), event.getAmount());
 
         // 0. Защита от повторной обработки (идемпотентность)
-        if (paymentRepository.existsByOrderId(event.getOrderId())) {
-            log.warn("️ Платеж для заказа {} уже существует, пропускаем", event.getOrderId());
+        if (paymentRepository.existsByOrderId(event.getId())) {
+            log.warn("️ Платеж для заказа {} уже существует, пропускаем", event.getId());
             return;
         }
 
         // 1. Создаем платеж со статусом PENDING
         Payment payment = Payment.builder()
-                .orderId(event.getOrderId())
+                .orderId(event.getId())
                 .customerId(event.getCustomerId())
                 .amount(event.getAmount())
                 .status(PaymentStatus.PENDING)
