@@ -25,7 +25,11 @@ public class PaymentEventProducer {
         }
 
         CompletableFuture<SendResult<String, PaymentCompletedEvent>> future =
-                kafkaTemplate.send(TOPIC_NAME, event);
+                kafkaTemplate.send(
+                        TOPIC_NAME,
+                        event.getOrderId().toString(),
+                        event
+                );
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
