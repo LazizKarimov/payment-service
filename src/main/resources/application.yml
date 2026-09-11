@@ -1,3 +1,45 @@
-spring.application.name=payment-service
+server:
+  port: 8081
 
+spring:
+  application:
+    name: payment-service
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    # Producer (??? ???????? PaymentCompleted)
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+    # Consumer (??? ?????? OrderCreated)
+    consumer:
+      group-id: payment-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.paymentservice.event"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.example.paymentservice.event.OrderCreatedEvent
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    com.example.paymentservice: DEBUG
