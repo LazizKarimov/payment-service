@@ -1,6 +1,7 @@
 package com.example.paymentservice.configuration;
 
 import com.example.paymentservice.event.OrderCreatedEvent;
+import com.example.paymentservice.event.SagaEvent;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
@@ -28,7 +29,7 @@ public class KafkaConsumerConfig {
     private String groupId;
 
     @Bean
-    public ConsumerFactory<String, OrderCreatedEvent> consumerFactory() {
+    public ConsumerFactory<String, SagaEvent> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.put(GROUP_ID_CONFIG, groupId);
@@ -38,7 +39,7 @@ public class KafkaConsumerConfig {
         config.put(VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         config.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
         config.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.paymentservice.event");
-        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, OrderCreatedEvent.class.getName());
+        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, SagaEvent.class.getName());
         config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
 
         return new DefaultKafkaConsumerFactory<>(config);
@@ -46,8 +47,8 @@ public class KafkaConsumerConfig {
 
     // ← ИМЯ БИНА ДОЛЖНО БЫТЬ kafkaListenerContainerFactory
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, SagaEvent> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, SagaEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(1);
