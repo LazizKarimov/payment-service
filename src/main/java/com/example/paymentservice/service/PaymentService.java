@@ -1,12 +1,12 @@
 package com.example.paymentservice.service;
 
+import com.example.paymentservice.dto.PaymentCompletedEvent;
+import com.example.paymentservice.dto.ProcessPaymentCommand;
 import com.example.paymentservice.entity.Payment;
 import com.example.paymentservice.entity.PaymentStatus;
-import com.example.paymentservice.event.PaymentCompletedEvent;
-import com.example.paymentservice.event.SagaEvent;
 import com.example.paymentservice.kafka.producer.PaymentEventProducer;
 import com.example.paymentservice.repository.PaymentRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,48 +20,31 @@ public class PaymentService {
     private final PaymentEventProducer paymentEventProducer;
 
     @Transactional
-    public void processPayment(SagaEvent event) {
-        log.info("Начало обработки платежа: orderId={}, sagaId={}, amount={}",
-                event.getOrderId(), event.getSagaId(), event.getAmount());
-
-        if (event.getAmount() == null) {
-            log.error("SagaEvent без amount: orderId={}, sagaId={}. Событие игнорируется",
-                    event.getOrderId(), event.getSagaId());
-            return;   // ack в consumer'е — да, ставим, чтобы не зацикливаться
-        }
-
-        if (paymentRepository.existsByOrderId(event.getOrderId())) {
-            log.warn("Платёж для заказа {} уже существует, пропускаем", event.getOrderId());
+    public void processPayment(ProcessPaymentCommand command) {
+        if (paymentRepository.existsByOrderId(command.orderId())) {
+            log.warn("Платёж для заказа {} уже существует, пропускаем", command.orderId());
             return;
         }
 
         Payment payment = Payment.builder()
-                .orderId(event.getOrderId())
-                .customerId(event.getCustomerId())
-                .amount(event.getAmount())
+                .orderId(command.orderId())
+                .customerId(command.customerId())
+                .amount(command.amount())
                 .status(PaymentStatus.PENDING)
                 .build();
 
-        Payment savedPayment = paymentRepository.save(payment);
-        log.info("Платёж создан: id={}, status=PENDING", savedPayment.getId());
+        Payment saved = paymentRepository.save(payment);
+        processPaymentWithGateway(saved);
+        saved.setStatus(PaymentStatus.COMPLETED);
+        paymentRepository.save(saved);
 
-        processPaymentWithGateway(savedPayment);
-
-        savedPayment.setStatus(PaymentStatus.COMPLETED);
-        Payment completedPayment = paymentRepository.save(savedPayment);
-        log.info("Платёж обработан: id={}, status=COMPLETED", completedPayment.getId());
-
-        PaymentCompletedEvent completedEvent = PaymentCompletedEvent.builder()
-                .paymentId(completedPayment.getId())
-                .orderId(completedPayment.getOrderId())
-                .amount(completedPayment.getAmount())
-                .status(PaymentStatus.COMPLETED.name())
-                .eventType("PAYMENT_COMPLETED")
-                .timestamp(System.currentTimeMillis())
-                .build();
-
-        paymentEventProducer.sendPaymentCompletedEvent(completedEvent);
-        log.info("Платёж полностью обработан и событие отправлено");
+        PaymentCompletedEvent completed = new PaymentCompletedEvent(
+                command.sagaId(),
+                saved.getId(),
+                saved.getOrderId(),
+                saved.getAmount()
+        );
+        paymentEventProducer.sendPaymentCompletedEvent(completed);
     }
 
     private void processPaymentWithGateway(Payment payment) {

@@ -1,45 +1,38 @@
 package com.example.paymentservice.kafka.producer;
 
-import com.example.paymentservice.event.PaymentCompletedEvent;
+import com.example.paymentservice.dto.PaymentCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
-
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PaymentEventProducer {
 
-    private final KafkaTemplate<String, PaymentCompletedEvent> kafkaTemplate;
-
     private static final String TOPIC_NAME = "payment-events";
+
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void sendPaymentCompletedEvent(PaymentCompletedEvent event) {
         if (event == null) {
-            log.warn("Попытка отправить null событие");
+            log.warn("Попытка отправить null PaymentCompletedEvent");
             return;
         }
 
-        CompletableFuture<SendResult<String, PaymentCompletedEvent>> future =
-                kafkaTemplate.send(
-                        TOPIC_NAME,
-                        event.getOrderId().toString(),
-                        event
-                );
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info(" PaymentCompletedEvent отправлен: {}", event);
-                log.info("   Partition: {}, Offset: {}",
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset());
-            } else {
-                log.error(" Ошибка отправки PaymentCompletedEvent: {}", event, ex);
-            }
-        });
+        kafkaTemplate.send(TOPIC_NAME, event.sagaId().toString(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex == null) {
+                        log.info("PaymentCompletedEvent отправлен: sagaId={}, paymentId={}",
+                                event.sagaId(), event.paymentId());
+                        log.info("   Partition: {}, Offset: {}",
+                                result.getRecordMetadata().partition(),
+                                result.getRecordMetadata().offset());
+                    } else {
+                        log.error("Ошибка отправки PaymentCompletedEvent: sagaId={}",
+                                event.sagaId(), ex);
+                    }
+                });
     }
 }

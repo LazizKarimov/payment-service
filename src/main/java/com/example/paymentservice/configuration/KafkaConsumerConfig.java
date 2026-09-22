@@ -1,7 +1,6 @@
 package com.example.paymentservice.configuration;
 
-import com.example.paymentservice.event.OrderCreatedEvent;
-import com.example.paymentservice.event.SagaEvent;
+import com.example.paymentservice.dto.ProcessPaymentCommand;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
@@ -29,7 +28,7 @@ public class KafkaConsumerConfig {
     private String groupId;
 
     @Bean
-    public ConsumerFactory<String, SagaEvent> consumerFactory() {
+    public ConsumerFactory<String, ProcessPaymentCommand> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.put(GROUP_ID_CONFIG, groupId);
@@ -38,8 +37,8 @@ public class KafkaConsumerConfig {
         config.put(KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         config.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-        config.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.paymentservice.event");
-        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, SagaEvent.class.getName());
+        config.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.paymentservice.dto");
+        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ProcessPaymentCommand.class.getName());
         config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
 
         return new DefaultKafkaConsumerFactory<>(config);
@@ -47,8 +46,8 @@ public class KafkaConsumerConfig {
 
     // ← ИМЯ БИНА ДОЛЖНО БЫТЬ kafkaListenerContainerFactory
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, SagaEvent> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, SagaEvent> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, ProcessPaymentCommand> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ProcessPaymentCommand> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(1);
