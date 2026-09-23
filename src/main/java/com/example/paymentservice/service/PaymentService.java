@@ -1,7 +1,9 @@
 package com.example.paymentservice.service;
 
 import com.example.paymentservice.dto.PaymentCompletedEvent;
+import com.example.paymentservice.dto.PaymentRefundedEvent;
 import com.example.paymentservice.dto.ProcessPaymentCommand;
+import com.example.paymentservice.dto.RefundPaymentCommand;
 import com.example.paymentservice.entity.Payment;
 import com.example.paymentservice.entity.PaymentStatus;
 import com.example.paymentservice.kafka.producer.PaymentEventProducer;
@@ -10,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 @Slf4j
 @Service
@@ -45,6 +49,37 @@ public class PaymentService {
                 saved.getAmount()
         );
         paymentEventProducer.sendPaymentCompletedEvent(completed);
+    }
+
+    @Transactional
+    public void refundPayment(RefundPaymentCommand command) {
+        Payment payment = paymentRepository.findById(command.paymentId())
+                .orElseThrow(() -> new RuntimeException(
+                        "Платёж не найден: " + command.paymentId()));
+
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            log.warn("Платёж {} уже возвращён, пропускаем", payment.getId());
+            return;
+        }
+
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            log.warn("Платёж {} в статусе {}, нельзя вернуть",
+                    payment.getId(), payment.getStatus());
+            return;
+        }
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        Payment saved = paymentRepository.save(payment);
+        log.info("Платёж возвращён: id={}, status=REFUNDED", saved.getId());
+
+        PaymentRefundedEvent event = new PaymentRefundedEvent(
+                command.sagaId(),
+                saved.getId(),
+                saved.getOrderId(),
+                saved.getAmount(),
+                Instant.now()
+        );
+        paymentEventProducer.sendPaymentRefundedEvent(event);
     }
 
     private void processPaymentWithGateway(Payment payment) {
